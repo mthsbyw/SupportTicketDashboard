@@ -1,3 +1,5 @@
+[![Build and deploy UiPath Coded App](https://github.com/mthsbyw/SupportTicketDashboard/actions/workflows/deploy.yml/badge.svg)](https://github.com/mthsbyw/SupportTicketDashboard/actions/workflows/deploy.yml)
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
