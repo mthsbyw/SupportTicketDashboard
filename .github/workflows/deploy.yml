@@ -1,0 +1,169 @@
+name: Build and deploy UiPath Coded App
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uipath-production
+  cancel-in-progress: false
+
+env:
+  APP_NAME: support-ticket-dashboard
+  NODE_VERSION: "20.x"
+  UIPATH_CLI_VERSION: "1.205.0"
+
+jobs:
+  build:
+    name: Build, lint, and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build output
+        shell: bash
+        run: test -f dist/index.html
+
+      - name: Calculate package version
+        id: version
+        shell: bash
+        run: echo "app_version=1.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Install UiPath CLI
+        run: npm install --global "@uipath/cli@${UIPATH_CLI_VERSION}"
+
+      - name: Install UiPath coded-app tool
+        run: |
+          uip --version
+          uip tools install @uipath/codedapp-tool@${UIPATH_CLI_VERSION}
+
+      - name: Pack coded app
+        shell: bash
+        run: |
+          uip codedapp pack dist \
+            --name "$APP_NAME" \
+            --display-name "Support Ticket Dashboard" \
+            --version "${{ steps.version.outputs.app_version }}" \
+            --author "Westcon Comstor" \
+            --description "Support Ticket Dashboard" \
+            --repository-url "${{ github.server_url }}/${{ github.repository }}" \
+            --repository-commit "${{ github.sha }}" \
+            --repository-branch "${{ github.ref_name }}" \
+            --output json
+          test -f ".uipath/${APP_NAME}.${{ steps.version.outputs.app_version }}.nupkg"
+          sha256sum ".uipath/${APP_NAME}.${{ steps.version.outputs.app_version }}.nupkg" > ".uipath/${APP_NAME}.${{ steps.version.outputs.app_version }}.nupkg.sha256"
+
+      - name: Upload tested package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codedapp-package
+          path: |
+            .uipath/${{ env.APP_NAME }}.${{ steps.version.outputs.app_version }}.nupkg
+            .uipath/${{ env.APP_NAME }}.${{ steps.version.outputs.app_version }}.nupkg.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-deploy:
+    name: Publish and deploy to UiPath
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: uipath-production
+      url: https://westconcc.uipath.host/support-ticket-dashboard
+    env:
+      APP_VERSION: ${{ needs.build.outputs.app_version }}
+      UIPATH_ORGANIZATION: ${{ vars.UIPATH_ORGANIZATION }}
+      UIPATH_TENANT: ${{ vars.UIPATH_TENANT }}
+
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install UiPath CLI
+        run: npm install --global "@uipath/cli@${UIPATH_CLI_VERSION}"
+
+      - name: Install UiPath coded-app tool
+        run: |
+          uip --version
+          uip tools install @uipath/codedapp-tool@${UIPATH_CLI_VERSION}
+
+      - name: Download tested package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codedapp-package
+          path: .uipath
+
+      - name: Verify tested package checksum
+        shell: bash
+        run: sha256sum --check ".uipath/${APP_NAME}.${APP_VERSION}.nupkg.sha256"
+
+      - name: Authenticate with UiPath
+        shell: bash
+        env:
+          UIPATH_CLIENT_ID: ${{ secrets.UIPATH_CLIENT_ID }}
+          UIPATH_CLIENT_SECRET: ${{ secrets.UIPATH_CLIENT_SECRET }}
+        run: |
+          uip login \
+            --client-id env.UIPATH_CLIENT_ID \
+            --client-secret env.UIPATH_CLIENT_SECRET \
+            --organization "$UIPATH_ORGANIZATION" \
+            --tenant "$UIPATH_TENANT" \
+            --scope "OR.Default Apps.Read Apps.Write" \
+            --output json
+
+      - name: Publish exact package version
+        shell: bash
+        run: |
+          uip codedapp publish \
+            --name "$APP_NAME" \
+            --version "$APP_VERSION" \
+            --type Web \
+            --tenant-feed \
+            --uipath-dir .uipath \
+            --output json
+
+      - name: Deploy exact package version
+        shell: bash
+        env:
+          UIPATH_FOLDER_KEY: ${{ vars.UIPATH_FOLDER_KEY }}
+        run: |
+          uip codedapp deploy \
+            --name "$APP_NAME" \
+            --version "$APP_VERSION" \
+            --folder-key "$UIPATH_FOLDER_KEY" \
+            --output json

@@ -1,0 +1,8 @@
+{
+  "clientId": "f03cf173-5e75-4d9f-b564-95050678e995",
+  "scope": "DataFabric.Schema.Read DataFabric.Data.Read DataFabric.Data.Write",
+  "orgName": "westconcc",
+  "tenantName": "DefaultTenant",
+  "baseUrl": "https://api.uipath.com",
+  "redirectUri": "http://localhost:5173"
+}
