@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,11 +28,13 @@
     "@types/react-dom": "^19.3.0",
     "@uipath/coded-apps-dev": "^1.0.0-beta.1",
     "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.6.2",
     "oxlint": "^1.90.0",
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.4",
     "typescript": "~7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^4.0.16"
   }
 }

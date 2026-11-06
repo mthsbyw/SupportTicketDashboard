@@ -1,4 +1,4 @@
-import { Entities } from "@uipath/uipath-typescript/entities";
+import type { Entities } from "@uipath/uipath-typescript/entities";
 import type {
   EntityGetResponse,
   EntityRecord,
