@@ -58,7 +58,9 @@ jobs:
       - name: Calculate package version
         id: version
         shell: bash
-        run: echo "app_version=1.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+        run: |
+          patch=$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          echo "app_version=1.0.${patch}" >> "$GITHUB_OUTPUT"
 
       - name: Install UiPath CLI
         run: npm install --global "@uipath/cli@${UIPATH_CLI_VERSION}"
