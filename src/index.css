@@ -279,6 +279,14 @@ h1 {
 .table-toolbar {
   border-bottom: 1px solid var(--color-border);
 }
+.filter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: min(100%, 520px);
+  min-width: 0;
+}
 .table-toolbar h2 {
   margin-bottom: 3px;
   font-size: 16px;
@@ -291,6 +299,7 @@ h1 {
 }
 .search-field {
   display: flex;
+  flex: 1 1 260px;
   align-items: center;
   gap: 8px;
   width: min(100%, 260px);
@@ -312,6 +321,25 @@ h1 {
   color: var(--color-foreground);
   background: transparent;
   font-size: 12px;
+}
+.status-filter {
+  flex: 0 0 150px;
+}
+.status-filter select {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  outline: 0;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  font-size: 12px;
+}
+.status-filter select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--color-primary) 16%, transparent);
 }
 .table-scroll {
   overflow-x: auto;
@@ -999,8 +1027,15 @@ h1 {
     align-items: stretch;
     flex-direction: column;
   }
-  .search-field {
+  .filter-controls {
+    align-items: stretch;
+    flex-direction: column;
     width: 100%;
+  }
+  .search-field,
+  .status-filter {
+    width: 100%;
+    flex-basis: auto;
   }
   .table-footer {
     align-items: flex-start;

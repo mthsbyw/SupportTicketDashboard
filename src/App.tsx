@@ -159,6 +159,7 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
@@ -197,6 +198,19 @@ function AppContent() {
             .map((record) => asText(getRecordValue(record, "assignee")))
             .filter((assignee) => assignee !== "—"),
         ),
+      ).sort(),
+    [records],
+  );
+
+  const filterStatusOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...statusOptions,
+          ...records
+            .map((record) => asText(getRecordValue(record, "status")))
+            .filter((status) => status !== "—"),
+        ]),
       ).sort(),
     [records],
   );
@@ -281,17 +295,27 @@ function AppContent() {
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const filtered = query
-      ? records.filter((record) =>
-          asText(getRecordValue(record, "subject"))
-            .toLowerCase()
-            .includes(query),
-        )
-      : records;
+    const filtered = records.filter((record) => {
+      const searchableText = [
+        "subject",
+        "assignee",
+        "status",
+        "priority",
+        "category",
+      ]
+        .map((fieldName) => asText(getRecordValue(record, fieldName)))
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch = !query || searchableText.includes(query);
+      const matchesStatus =
+        !statusFilter ||
+        asText(getRecordValue(record, "status")) === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
     return [...filtered].sort((a, b) =>
       compareTickets(a, b, sortKey, sortDirection),
     );
-  }, [records, search, sortDirection, sortKey]);
+  }, [records, search, sortDirection, sortKey, statusFilter]);
 
   const totalPages = Math.max(
     1,
@@ -428,18 +452,40 @@ function AppContent() {
                   : `Sorted by ${formatFieldLabel(sortKey)} · ${sortDirection === "asc" ? "ascending" : "descending"}`}
               </p>
             </div>
-            <label className="search-field">
-              <Search size={16} />
-              <span className="sr-only">Search ticket subject</span>
-              <input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search subject…"
-              />
-            </label>
+            <div className="filter-controls">
+              <label className="search-field">
+                <Search size={16} />
+                <span className="sr-only">
+                  Search tickets by subject, assignee, status, priority, or
+                  category
+                </span>
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search tickets…"
+                />
+              </label>
+              <label className="status-filter">
+                <span className="sr-only">Filter tickets by status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">All statuses</option>
+                  {filterStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {formatFieldLabel(status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
           <div className="table-scroll">
             <table className="ticket-table">
@@ -476,7 +522,11 @@ function AppContent() {
                     >
                       <Search size={22} />
                       <strong>No tickets found</strong>
-                      <span>Try a different subject search.</span>
+                      <span>
+                        {search || statusFilter
+                          ? "Try a different search or status filter."
+                          : "No tickets are available yet."}
+                      </span>
                     </td>
                   </tr>
                 ) : null}
